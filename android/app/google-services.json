@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "58616196716",
+    "project_id": "flash-ai-a25f9",
+    "storage_bucket": "flash-ai-a25f9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:58616196716:android:940a3d985f490956c4b249",
+        "android_client_info": {
+          "package_name": "com.example.temp_flash_ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "58616196716-ajvcqpi30tc0sisj1g91aoeovsp5utdr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAL0vFyQnqBV0a1s_MXijdrrI-uAaKld6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "58616196716-ajvcqpi30tc0sisj1g91aoeovsp5utdr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
