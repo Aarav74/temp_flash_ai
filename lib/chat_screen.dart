@@ -24,56 +24,76 @@ class _ChatScreenState extends State<ChatScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _isDarkMode = false;
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
+    _verifyFirebaseAuth();
     _initializeGemini();
     _initializeSpeech();
     _loadInitialGreeting();
   }
 
+  void _verifyFirebaseAuth() {
+    if (_currentUser == null) {
+      debugPrint("⚠️ No authenticated user found");
+    } else {
+      debugPrint("✅ Authenticated user: ${_currentUser.email}");
+    }
+  }
+
   void _initializeGemini() {
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
     if (apiKey.isEmpty) {
-      throw Exception("No GEMINI_API_KEY found in .env file");
+      _addSystemMessage("GEMINI_API_KEY not found in .env file");
+      return;
     }
 
-    _model = GenerativeModel(
-      model: 'gemini-1.5-pro',
-      apiKey: apiKey,
-      generationConfig: GenerationConfig(
-        temperature: 1,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        responseMimeType: 'text/plain',
-      ),
-    );
-
-    _chat = _model.startChat(history: []);
+    try {
+      _model = GenerativeModel(
+        model: 'gemini-1.5-pro',
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(
+          temperature: 1,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+          responseMimeType: 'text/plain',
+        ),
+      );
+      _chat = _model.startChat();
+    } catch (e) {
+      _addSystemMessage("Failed to initialize Gemini: ${e.toString()}");
+    }
   }
 
   void _initializeSpeech() async {
-    bool available = await _speech.initialize();
-    if (!available) {
-      debugPrint("Speech-to-Text not available");
+    try {
+      bool available = await _speech.initialize();
+      if (!available) {
+        _addSystemMessage("Speech recognition not available");
+      }
+    } catch (e) {
+      _addSystemMessage("Speech init failed: ${e.toString()}");
     }
   }
 
   void _loadInitialGreeting() async {
-    setState(() => _isTyping = true);
-    final response = await _chat.sendMessage(Content.text(
-        "Hello! I'm FLASH AI. How can I assist you today? Keep responses brief."));
+    _addSystemMessage("Hello! I'm FLASH AI. How can I help you today?");
+  }
+
+  void _addSystemMessage(String text) {
     setState(() {
       _messages.insert(
-          0,
-          ChatMessage(
-            text: response.text ?? "Hello! How can I help?",
-            sender: "FLASH",
-            isDarkMode: _isDarkMode, isFile:false,
-          ));
-      _isTyping = false;
+        0,
+        ChatMessage(
+          text: text,
+          sender: "FLASH",
+          isDarkMode: _isDarkMode,
+          isFile: false,
+        ),
+      );
     });
   }
 
@@ -81,22 +101,26 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _isDarkMode = !_isDarkMode;
       // Update all messages with new theme
-      for (var message in _messages) {
-        message.isDarkMode = _isDarkMode;
-      }
+      
     });
   }
 
-  void _toggleListening() async {
-    if (_isListening) {
-      await _speech.stop();
-      setState(() => _isListening = false);
-      if (_controller.text.isNotEmpty) await _sendMessage();
-    } else {
-      bool available = await _speech.listen(
-        onResult: (result) => setState(() => _controller.text = result.recognizedWords),
-      );
-      setState(() => _isListening = available);
+  Future<void> _toggleListening() async {
+    try {
+      if (_isListening) {
+        await _speech.stop();
+        setState(() => _isListening = false);
+        if (_controller.text.isNotEmpty) await _sendMessage();
+      } else {
+        bool available = await _speech.listen(
+          onResult: (result) {
+            setState(() => _controller.text = result.recognizedWords);
+          },
+        );
+        setState(() => _isListening = available);
+      }
+    } catch (e) {
+      _addSystemMessage("Speech error: ${e.toString()}");
     }
   }
 
@@ -110,21 +134,43 @@ class _ChatScreenState extends State<ChatScreen> {
       if (result == null) return;
 
       final file = result.files.first;
-      final fileBytes = file.bytes;
-      if (fileBytes == null) return;
-
-      final mimeType = _getMimeType(file.extension);
-      final base64File = "data:$mimeType;base64,${base64Encode(fileBytes)}";
+      if (file.bytes == null) {
+        _addSystemMessage("Failed to read file bytes");
+        return;
+      }
 
       _addMessage(file.name, "User", isFile: true);
-      _processFileResponse(base64File);
+      _processFile(file);
     } catch (e) {
-      _handleError("Error processing file: ${e.toString()}");
+      _addSystemMessage("File upload failed: ${e.toString()}");
+    }
+  }
+
+  Future<void> _processFile(PlatformFile file) async {
+    setState(() => _isTyping = true);
+    
+    try {
+      final mimeType = _getMimeType(file.extension);
+      final base64File = base64Encode(file.bytes!);
+      final content = Content.multi([
+        TextPart("data:$mimeType;base64,$base64File"),
+        TextPart("Please analyze this ${file.extension} file"),
+      ]);
+
+      final response = await _chat.sendMessage(content);
+      _addMessage(
+        response.text ?? "I've processed your file",
+        "FLASH",
+      );
+    } catch (e) {
+      _addSystemMessage("Failed to process file: ${e.toString()}");
+    } finally {
+      setState(() => _isTyping = false);
     }
   }
 
   String _getMimeType(String? extension) {
-    switch (extension) {
+    switch (extension?.toLowerCase()) {
       case 'jpg':
       case 'jpeg':
         return 'image/jpeg';
@@ -133,27 +179,11 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'pdf':
         return 'application/pdf';
       case 'doc':
-      case 'docx':
         return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       default:
         return 'application/octet-stream';
-    }
-  }
-
-  Future<void> _processFileResponse(String base64File) async {
-    setState(() => _isTyping = true);
-    try {
-      final response = await _chat.sendMessage(
-        Content.multi([TextPart(base64File)]),
-      );
-      _addMessage(
-        response.text ?? "I've received your file. How can I help with it?",
-        "FLASH",
-      );
-    } catch (e) {
-      _handleError("Failed to process file");
-    } finally {
-      setState(() => _isTyping = false);
     }
   }
 
@@ -163,20 +193,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _controller.clear();
     _addMessage(message, "User");
-    await _processTextResponse(message);
+    await _processTextMessage(message);
   }
 
-  Future<void> _processTextResponse(String message) async {
+  Future<void> _processTextMessage(String message) async {
     setState(() => _isTyping = true);
+    
     try {
       final response = await _chat.sendMessage(Content.text(message));
       _addMessage(
-        response.text ?? "Sorry, I couldn't generate a response.",
+        response.text ?? "Sorry, I couldn't generate a response",
         "FLASH",
       );
-      _scrollToBottom();
     } catch (e) {
-      _handleError("Error processing your message");
+      _addSystemMessage("Error processing message: ${e.toString()}");
     } finally {
       setState(() => _isTyping = false);
     }
@@ -189,17 +219,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ChatMessage(
           text: text,
           sender: sender,
-          isFile: isFile,
           isDarkMode: _isDarkMode,
+          isFile: isFile,
         ),
       );
+      _scrollToBottom();
     });
-    _scrollToBottom();
-  }
-
-  void _handleError(String error) {
-    _addMessage(error, "FLASH");
-    debugPrint(error);
   }
 
   void _scrollToBottom() {
@@ -232,10 +257,12 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: _toggleDarkMode,
+            tooltip: 'Toggle dark mode',
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => FirebaseAuth.instance.signOut(),
+            tooltip: 'Sign out',
           ),
         ],
       ),
@@ -251,10 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           if (_isTyping)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: LinearProgressIndicator(),
-            ),
+            const LinearProgressIndicator(minHeight: 2),
           _buildInputArea(),
         ],
       ),
@@ -263,17 +287,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: _isDarkMode ? Colors.grey[800] : Colors.white,
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.attach_file),
             onPressed: _uploadFile,
+            tooltip: 'Attach file',
           ),
           IconButton(
             icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+            color: _isListening ? Colors.red : null,
             onPressed: _toggleListening,
+            tooltip: 'Voice input',
           ),
           Expanded(
             child: TextField(
@@ -281,7 +308,7 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: InputDecoration(
                 hintText: "Type your message...",
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
@@ -291,6 +318,7 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.send),
             onPressed: _sendMessage,
+            tooltip: 'Send message',
           ),
         ],
       ),
