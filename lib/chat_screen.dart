@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isListening = false;
   bool _isDarkMode = false;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final String creatorName = "AARAV"; // Your name here
 
   @override
   void initState() {
@@ -79,7 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _loadInitialGreeting() async {
+  void _loadInitialGreeting() {
     _addSystemMessage("Hello! I'm FLASH AI. How can I help you today?");
   }
 
@@ -100,8 +101,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void _toggleDarkMode() {
     setState(() {
       _isDarkMode = !_isDarkMode;
-      // Update all messages with new theme
-      
     });
   }
 
@@ -200,6 +199,19 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isTyping = true);
     
     try {
+      final lowerMessage = message.toLowerCase();
+      
+      // Special commands check
+      if (lowerMessage.contains("who made you") || 
+          lowerMessage.contains("who created you")) {
+        _addMessage(
+          "I was created by $creatorName! ❤️",
+          "FLASH",
+        );
+        return;
+      }
+
+      // Normal AI processing for other messages
       final response = await _chat.sendMessage(Content.text(message));
       _addMessage(
         response.text ?? "Sorry, I couldn't generate a response",
