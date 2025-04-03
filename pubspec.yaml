@@ -61,6 +61,8 @@ flutter:
     - assets/images/Graident Ai Robot.jpg
     - assets/images/background_image.jpg
     - lib/firebase_options.dart
+    - assets/images/chat_bg_light.jpg
+    - assets/images/chat_bg_dark.jpg
 
 # Flutter Launcher Icons configuration
 flutter_icons: # Add this block at the root level

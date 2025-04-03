@@ -28,6 +28,11 @@ class _ChatScreenState extends State<ChatScreen> {
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   final String creatorName = "AARAV";
 
+  // Asset paths
+  static const String _appIconPath = 'assets/images/app_icon.png';
+  static const String _bgLightPath = 'assets/images/chat_bg_light.jpg';
+  static const String _bgDarkPath = 'assets/images/chat_bg_dark.jpg';
+
   // Color definitions
   final Color _darkBackground = const Color(0xFF1A1A2E);
   final Color _darkMessageUser = const Color(0xFF16213E);
@@ -37,8 +42,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final Color _lightMessageUser = Colors.blue[100]!;
   final Color _lightMessageAI = Colors.grey[200]!;
   final Color _lightTextColor = Colors.black;
-  
-  get _darkInputBackground => null;
+  final Color _darkInputBackground = Colors.grey[800]!;
 
   @override
   void initState() {
@@ -47,6 +51,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _initializeGemini();
     _initializeSpeech();
     _loadInitialGreeting();
+    _updateSystemUIOverlay();
+  }
+
+  void _updateSystemUIOverlay() {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -127,12 +135,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _toggleDarkMode() {
     setState(() {
       _isDarkMode = !_isDarkMode;
-      SystemChrome.setSystemUIOverlayStyle(
-        SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: _isDarkMode ? Brightness.light : Brightness.dark,
-        ),
-      );
+      _updateSystemUIOverlay();
     });
   }
 
@@ -224,7 +227,11 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final lowerMessage = message.toLowerCase();
       
-      if (lowerMessage.contains("who made you") || lowerMessage.contains("who created you")||lowerMessage.contains("who created u")||lowerMessage.contains("who made u")||lowerMessage.contains("you made by")) {
+      if (lowerMessage.contains("who made you") || 
+          lowerMessage.contains("who created you") ||
+          lowerMessage.contains("who created u") ||
+          lowerMessage.contains("who made u") ||
+          lowerMessage.contains("you made by")) {
         _addMessage("I was created by $creatorName! ❤️", "FLASH");
         return;
       }
@@ -285,16 +292,28 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: _isDarkMode ? _darkBackground : _lightBackground,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            const Text('FLASH AI', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(
-              userEmail,
-              style: TextStyle(
-                fontSize: 12,
-                color: _isDarkMode ? Colors.white70 : Colors.black54,
-              ),
+            Image.asset(
+              _appIconPath,
+              width: 32,
+              height: 32,
+              errorBuilder: (context, error, stackTrace) => 
+                  const Icon(Icons.auto_awesome),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('FLASH AI', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  userEmail,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _isDarkMode ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -302,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: _signOut,
             tooltip: 'Logout',
           ),
@@ -316,81 +335,77 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    // ignore: deprecated_member_use
-                    _isDarkMode ? _darkBackground.withOpacity(0.9) : _lightBackground.withOpacity(0.9),
-                    // ignore: deprecated_member_use
-                    _isDarkMode ? _darkBackground.withOpacity(0.95) : _lightBackground.withOpacity(0.95),
-                    _isDarkMode ? _darkBackground : _lightBackground,
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-              child: ListView.builder(
-                controller: _scrollController,
-                reverse: true,
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) => _messages[index],
-              ),
+          // Background image
+          Positioned.fill(
+            child: Image.asset(
+              _isDarkMode ? _bgDarkPath : _bgLightPath,
+              fit: BoxFit.cover,
+              opacity: const AlwaysStoppedAnimation(0.1),
             ),
           ),
-          if (_isTyping)
-            LinearProgressIndicator(
-              minHeight: 2,
-              color: _isDarkMode ? Colors.blue[200] : Colors.blue,
-              backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.grey[300],
-            ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: _isDarkMode ? _darkInputBackground : Colors.white,
-              border: Border.all(color: _isDarkMode ? Colors.grey[800]! : Colors.grey[300]!),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.attach_file, color: _isDarkMode ? Colors.white70 : Colors.grey[700]),
-                  onPressed: _uploadFile,
+          Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) => _messages[index],
                 ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Type your message...",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              if (_isTyping)
+                LinearProgressIndicator(
+                  minHeight: 2,
+                  color: _isDarkMode ? Colors.blue[200] : Colors.blue,
+                  backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _isDarkMode ? _darkInputBackground : Colors.white,
+                  border: Border.all(color: _isDarkMode ? Colors.grey[800]! : Colors.grey[300]!),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.attach_file, color: _isDarkMode ? Colors.white70 : Colors.grey[700]),
+                      onPressed: _uploadFile,
                     ),
-                    style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: "Type your message...",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _isListening ? Icons.mic_off : Icons.mic,
+                        color: _isListening ? Colors.red : (_isDarkMode ? Colors.white70 : Colors.grey[700]),
+                      ),
+                      onPressed: _toggleListening,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.send, color: _isDarkMode ? Colors.blue[200] : Colors.blue),
+                      onPressed: _sendMessage,
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic_off : Icons.mic,
-                    color: _isListening ? Colors.red : (_isDarkMode ? Colors.white70 : Colors.grey[700]),
-                  ),
-                  onPressed: _toggleListening,
-                ),
-                IconButton(
-                  icon: Icon(Icons.send, color: _isDarkMode ? Colors.blue[200] : Colors.blue),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
