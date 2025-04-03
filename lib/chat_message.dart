@@ -3,44 +3,45 @@ import 'package:flutter/material.dart';
 class ChatMessage extends StatelessWidget {
   final String text;
   final String sender;
-  final bool isDarkMode;
+  final bool isUser;  // Required parameter to identify user messages
   final bool isFile;
+  final Color userColor;
+  final Color aiColor;
+  final Color textColor;
 
   const ChatMessage({
     super.key,
     required this.text,
     required this.sender,
-    required this.isDarkMode,
+    required this.isUser,
     required this.isFile,
+    required this.userColor,
+    required this.aiColor,
+    required this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Define colors based on theme and sender
-    final backgroundColor = sender == "User"
-        ? (isDarkMode ? Colors.blue[800] : Colors.blue)
-        : (isDarkMode ? Colors.grey[800] : Colors.grey[200]);
-
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-    final iconColor = isDarkMode ? Colors.white70 : Colors.black54;
+    final backgroundColor = isUser ? userColor : aiColor;
+    // ignore: deprecated_member_use
+    final iconColor = textColor.withOpacity(0.7);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: sender == "User" 
-            ? MainAxisAlignment.end 
-            : MainAxisAlignment.start,
+        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Sender avatar (only for AI messages)
-          if (sender != "User") ...[
+          // AI avatar (left side for AI messages)
+          if (!isUser) ...[
             CircleAvatar(
-              backgroundColor: isDarkMode ? Colors.blue[900] : Colors.blue[200],
+              // ignore: deprecated_member_use
+              backgroundColor: aiColor.withOpacity(0.8),
               radius: 18,
               child: Icon(
                 Icons.auto_awesome,
                 size: 18,
-                color: isDarkMode ? Colors.white : Colors.blue[800],
+                color: textColor,
               ),
             ),
             const SizedBox(width: 8),
@@ -58,11 +59,12 @@ class ChatMessage extends StatelessWidget {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(sender == "User" ? 20 : 4),
-                  bottomRight: Radius.circular(sender == "User" ? 4 : 20),
+                  bottomLeft: Radius.circular(isUser ? 20 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 20),
                 ),
                 boxShadow: [
                   BoxShadow(
+                    // ignore: deprecated_member_use
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
@@ -70,11 +72,8 @@ class ChatMessage extends StatelessWidget {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: sender == "User" 
-                    ? CrossAxisAlignment.end 
-                    : CrossAxisAlignment.start,
+                crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
-                  // File indicator (if applicable)
                   if (isFile) ...[
                     Icon(
                       Icons.insert_drive_file,
@@ -83,8 +82,6 @@ class ChatMessage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  
-                  // Message text
                   Text(
                     text,
                     style: TextStyle(
@@ -92,26 +89,24 @@ class ChatMessage extends StatelessWidget {
                       fontSize: 16,
                     ),
                   ),
-                  
-                  // Timestamp
                   const SizedBox(height: 4),
                   Text(
                     _formatTime(DateTime.now()),
                     style: TextStyle(
+                      // ignore: deprecated_member_use
                       color: textColor.withOpacity(0.6),
                       fontSize: 10,
                     ),
-                  ),
-                ],
+              )],
               ),
             ),
           ),
           
-          // User avatar (only for user messages)
-          if (sender == "User") ...[
+          // User avatar (right side for user messages)
+          if (isUser) ...[
             const SizedBox(width: 8),
             CircleAvatar(
-              backgroundColor: isDarkMode ? Colors.blue[800] : Colors.blue,
+              backgroundColor: userColor,
               radius: 18,
               child: Icon(
                 Icons.person,

@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'chat_message.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -25,7 +26,19 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isListening = false;
   bool _isDarkMode = false;
   final User? _currentUser = FirebaseAuth.instance.currentUser;
-  final String creatorName = "AARAV"; // Your name here
+  final String creatorName = "AARAV";
+
+  // Color definitions
+  final Color _darkBackground = const Color(0xFF1A1A2E);
+  final Color _darkMessageUser = const Color(0xFF16213E);
+  final Color _darkMessageAI = const Color(0xFF0F3460);
+  final Color _darkTextColor = Colors.white;
+  final Color _lightBackground = Colors.grey[50]!;
+  final Color _lightMessageUser = Colors.blue[100]!;
+  final Color _lightMessageAI = Colors.grey[200]!;
+  final Color _lightTextColor = Colors.black;
+  
+  get _darkInputBackground => null;
 
   @override
   void initState() {
@@ -34,6 +47,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _initializeGemini();
     _initializeSpeech();
     _loadInitialGreeting();
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: _isDarkMode ? Brightness.light : Brightness.dark,
+      ),
+    );
   }
 
   void _verifyFirebaseAuth() {
@@ -60,7 +79,6 @@ class _ChatScreenState extends State<ChatScreen> {
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 8192,
-          responseMimeType: 'text/plain',
         ),
       );
       _chat = _model.startChat();
@@ -81,26 +99,40 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _loadInitialGreeting() {
-    _addSystemMessage("Hello! I'm FLASH AI. How can I help you today?");
+    _addSystemMessage("Hello! I'm FLASH. How can I help you today?");
   }
 
   void _addSystemMessage(String text) {
-    setState(() {
-      _messages.insert(
-        0,
-        ChatMessage(
-          text: text,
-          sender: "FLASH",
-          isDarkMode: _isDarkMode,
-          isFile: false,
-        ),
-      );
-    });
+    _addMessage(text, "FLASH");
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Sign out failed: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _toggleDarkMode() {
     setState(() {
       _isDarkMode = !_isDarkMode;
+      SystemChrome.setSystemUIOverlayStyle(
+        SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: _isDarkMode ? Brightness.light : Brightness.dark,
+        ),
+      );
     });
   }
 
@@ -112,9 +144,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (_controller.text.isNotEmpty) await _sendMessage();
       } else {
         bool available = await _speech.listen(
-          onResult: (result) {
-            setState(() => _controller.text = result.recognizedWords);
-          },
+          onResult: (result) => setState(() => _controller.text = result.recognizedWords),
         );
         setState(() => _isListening = available);
       }
@@ -170,19 +200,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _getMimeType(String? extension) {
     switch (extension?.toLowerCase()) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'pdf':
-        return 'application/pdf';
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      default:
-        return 'application/octet-stream';
+      case 'jpg': case 'jpeg': return 'image/jpeg';
+      case 'png': return 'image/png';
+      case 'pdf': return 'application/pdf';
+      case 'doc': return 'application/msword';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default: return 'application/octet-stream';
     }
   }
 
@@ -201,22 +224,13 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final lowerMessage = message.toLowerCase();
       
-      // Special commands check
-      if (lowerMessage.contains("who made you") || 
-          lowerMessage.contains("who created you")) {
-        _addMessage(
-          "I was created by $creatorName! ❤️",
-          "FLASH",
-        );
+      if (lowerMessage.contains("who made you") || lowerMessage.contains("who created you")||lowerMessage.contains("who created u")||lowerMessage.contains("who made u")||lowerMessage.contains("you made by")) {
+        _addMessage("I was created by $creatorName! ❤️", "FLASH");
         return;
       }
 
-      // Normal AI processing for other messages
       final response = await _chat.sendMessage(Content.text(message));
-      _addMessage(
-        response.text ?? "Sorry, I couldn't generate a response",
-        "FLASH",
-      );
+      _addMessage(response.text ?? "Sorry, I couldn't generate a response", "FLASH");
     } catch (e) {
       _addSystemMessage("Error processing message: ${e.toString()}");
     } finally {
@@ -225,14 +239,19 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _addMessage(String text, String sender, {bool isFile = false}) {
+    if (!mounted) return;
+    
     setState(() {
       _messages.insert(
         0,
         ChatMessage(
           text: text,
           sender: sender,
-          isDarkMode: _isDarkMode,
+          isUser: sender == "User",
           isFile: isFile,
+          userColor: _isDarkMode ? _darkMessageUser : _lightMessageUser,
+          aiColor: _isDarkMode ? _darkMessageAI : _lightMessageAI,
+          textColor: _isDarkMode ? _darkTextColor : _lightTextColor,
         ),
       );
       _scrollToBottom();
@@ -261,76 +280,117 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userEmail = _currentUser?.email ?? 'Guest';
+
     return Scaffold(
-      backgroundColor: _isDarkMode ? Colors.grey[900] : Colors.grey[100],
+      backgroundColor: _isDarkMode ? _darkBackground : _lightBackground,
       appBar: AppBar(
-        title: const Text('FLASH AI'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('FLASH AI', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              userEmail,
+              style: TextStyle(
+                fontSize: 12,
+                color: _isDarkMode ? Colors.white70 : Colors.black54,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: _isDarkMode ? _darkMessageAI : Colors.blue,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: _toggleDarkMode,
-            tooltip: 'Toggle dark mode',
+            icon: Icon(Icons.logout, color: Colors.white),
+            onPressed: _signOut,
+            tooltip: 'Logout',
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
-            tooltip: 'Sign out',
+            icon: Icon(
+              _isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              color: Colors.white,
+            ),
+            onPressed: _toggleDarkMode,
+            tooltip: 'Toggle theme',
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              reverse: true,
-              padding: const EdgeInsets.all(8),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) => _messages[index],
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    // ignore: deprecated_member_use
+                    _isDarkMode ? _darkBackground.withOpacity(0.9) : _lightBackground.withOpacity(0.9),
+                    // ignore: deprecated_member_use
+                    _isDarkMode ? _darkBackground.withOpacity(0.95) : _lightBackground.withOpacity(0.95),
+                    _isDarkMode ? _darkBackground : _lightBackground,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+              child: ListView.builder(
+                controller: _scrollController,
+                reverse: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) => _messages[index],
+              ),
             ),
           ),
           if (_isTyping)
-            const LinearProgressIndicator(minHeight: 2),
-          _buildInputArea(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: _isDarkMode ? Colors.grey[800] : Colors.white,
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.attach_file),
-            onPressed: _uploadFile,
-            tooltip: 'Attach file',
-          ),
-          IconButton(
-            icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-            color: _isListening ? Colors.red : null,
-            onPressed: _toggleListening,
-            tooltip: 'Voice input',
-          ),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: "Type your message...",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              onSubmitted: (_) => _sendMessage(),
+            LinearProgressIndicator(
+              minHeight: 2,
+              color: _isDarkMode ? Colors.blue[200] : Colors.blue,
+              backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.grey[300],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _sendMessage,
-            tooltip: 'Send message',
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: _isDarkMode ? _darkInputBackground : Colors.white,
+              border: Border.all(color: _isDarkMode ? Colors.grey[800]! : Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.attach_file, color: _isDarkMode ? Colors.white70 : Colors.grey[700]),
+                  onPressed: _uploadFile,
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: "Type your message...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic_off : Icons.mic,
+                    color: _isListening ? Colors.red : (_isDarkMode ? Colors.white70 : Colors.grey[700]),
+                  ),
+                  onPressed: _toggleListening,
+                ),
+                IconButton(
+                  icon: Icon(Icons.send, color: _isDarkMode ? Colors.blue[200] : Colors.blue),
+                  onPressed: _sendMessage,
+                ),
+              ],
+            ),
           ),
         ],
       ),
