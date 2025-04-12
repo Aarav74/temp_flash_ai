@@ -35,16 +35,17 @@ class ChatMessage extends StatelessWidget {
         mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // AI avatar (left side for AI messages)
+        
           if (!isUser) ...[
-            CircleAvatar(
-              // ignore: deprecated_member_use
-              backgroundColor: aiColor.withOpacity(0.8),
-              radius: 18,
-              child: Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: textColor,
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                image: DecorationImage(
+                  image: AssetImage('assets/images/Graident Ai Robot.jpg'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -53,10 +54,7 @@ class ChatMessage extends StatelessWidget {
           // Message bubble
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: backgroundColor,
                 borderRadius: BorderRadius.only(

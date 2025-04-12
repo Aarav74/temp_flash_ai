@@ -30,7 +30,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final String creatorName = "AARAV";
 
   // Asset paths
-  static const String _appIconPath = 'assets/images/app_icon.png';
   static const String _bgLightPath = 'assets/images/chat_bg_light.jpg';
   static const String _bgDarkPath = 'assets/images/chat_bg_dark.jpg';
 
@@ -59,8 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness:
-            _isDarkMode ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: _isDarkMode ? Brightness.light : Brightness.dark,
       ),
     );
   }
@@ -149,9 +147,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (_controller.text.isNotEmpty) await _sendMessage();
       } else {
         bool available = await _speech.listen(
-          onResult:
-              (result) =>
-                  setState(() => _controller.text = result.recognizedWords),
+          onResult: (result) => setState(() => _controller.text = result.recognizedWords),
         );
         setState(() => _isListening = available);
       }
@@ -184,7 +180,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _processFile(PlatformFile file) async {
     setState(() => _isTyping = true);
-
+    
     try {
       final mimeType = _getMimeType(file.extension);
       final base64File = base64Encode(file.bytes!);
@@ -231,11 +227,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _processTextMessage(String message) async {
     setState(() => _isTyping = true);
-
+    
     try {
       final lowerMessage = message.toLowerCase();
-
-      if (lowerMessage.contains("who made you") ||
+      
+      if (lowerMessage.contains("who made you") || 
           lowerMessage.contains("who created you") ||
           lowerMessage.contains("who created u") ||
           lowerMessage.contains("who made u") ||
@@ -245,10 +241,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       final response = await _chat.sendMessage(Content.text(message));
-      _addMessage(
-        response.text ?? "Sorry, I couldn't generate a response",
-        "FLASH",
-      );
+      _addMessage(response.text ?? "Sorry, I couldn't generate a response", "FLASH");
     } catch (e) {
       _addSystemMessage("Error processing message: ${e.toString()}");
     } finally {
@@ -258,7 +251,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _addMessage(String text, String sender, {bool isFile = false}) {
     if (!mounted) return;
-
+    
     setState(() {
       _messages.insert(
         0,
@@ -270,7 +263,7 @@ class _ChatScreenState extends State<ChatScreen> {
           userColor: _isDarkMode ? _darkMessageUser : _lightMessageUser,
           aiColor: _isDarkMode ? _darkMessageAI : _lightMessageAI,
           textColor: _isDarkMode ? _darkTextColor : _lightTextColor,
-          isDarkMode: false,
+          isDarkMode: _isDarkMode,
         ),
       );
       _scrollToBottom();
@@ -307,14 +300,6 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Row(
           children: [
             AnimatedLightning(size: 32, color: Colors.yellow[700]!),
-            Image.asset(
-              _appIconPath,
-              width: 32,
-              height: 32,
-              errorBuilder:
-                  (context, error, stackTrace) =>
-                      const Icon(Icons.auto_awesome),
-            ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,14 +362,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 LinearProgressIndicator(
                   minHeight: 2,
                   color: _isDarkMode ? Colors.blue[200] : Colors.blue,
-                  backgroundColor:
-                      _isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                  backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.grey[300],
                 ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: _isDarkMode ? _darkInputBackground : Colors.white,
                   border: Border.all(
@@ -410,27 +391,19 @@ class _ChatScreenState extends State<ChatScreen> {
                             borderSide: BorderSide.none,
                           ),
                           filled: true,
-                          fillColor:
-                              _isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                          ),
+                          fillColor: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
-                        style: TextStyle(
-                          color: _isDarkMode ? Colors.white : Colors.black,
-                        ),
+                        style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                     IconButton(
                       icon: Icon(
                         _isListening ? Icons.mic_off : Icons.mic,
-                        color:
-                            _isListening
-                                ? Colors.red
-                                : (_isDarkMode
-                                    ? Colors.white70
-                                    : Colors.grey[700]),
+                        color: _isListening
+                            ? Colors.red
+                            : (_isDarkMode ? Colors.white70 : Colors.grey[700]),
                       ),
                       onPressed: _toggleListening,
                     ),
