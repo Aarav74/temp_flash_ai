@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'animated_lightning.dart';
+import 'flash_intro_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -170,11 +172,26 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo and Title
-                  Icon(
-                    Icons.bolt,
-                    size: 80,
-                    color: colorScheme.primary,
+                  // Logo and Title with Hero animation
+                  Hero(
+                    tag: 'flashLogo',
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: AnimatedLightning(
+                        size: 80,
+                        color: Colors.amber,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FlashIntroScreen(
+                                user: _auth.currentUser,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
