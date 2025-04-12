@@ -25,6 +25,7 @@ android {
         targetSdk = 34  // Explicitly set
         versionCode = 1
         versionName = "1.0"
+        
     }
 
     buildTypes {

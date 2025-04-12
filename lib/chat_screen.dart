@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flash_ai/flash_intro_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -282,6 +283,15 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  void _navigateToIntroScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FlashIntroScreen(user: _currentUser),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -298,8 +308,23 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: _isDarkMode ? _darkBackground : _lightBackground,
       appBar: AppBar(
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedLightning(size: 32, color: Colors.yellow[700]!),
+            // Wrapped in Material to ensure proper ink splash
+            Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: _navigateToIntroScreen,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: AnimatedLightning(
+                    size: 28,
+                    color: Colors.amber,
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,7 +364,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Stack(
         children: [
-          // Background image
           Positioned.fill(
             child: Image.asset(
               _isDarkMode ? _bgDarkPath : _bgLightPath,

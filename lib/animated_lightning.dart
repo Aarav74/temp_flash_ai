@@ -9,7 +9,7 @@ class AnimatedLightning extends StatefulWidget {
   const AnimatedLightning({
     super.key,
     this.size = 32,
-    this.color = Colors.yellow,
+    this.color = Colors.amber, // Changed to amber for better visibility
     this.onTap,
   });
 
@@ -32,10 +32,15 @@ class _AnimatedLightningState extends State<AnimatedLightning>
       duration: const Duration(milliseconds: 300),
     );
     _animation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.2), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.2, end: 0.8), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.8, end: 1.0), weight: 20),
-    ]).animate(_controller);
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 0.95), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 20),
+    ]).animate(_controller)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          widget.onTap?.call();
+        }
+      });
   }
 
   void _triggerAnimation() {
@@ -43,7 +48,9 @@ class _AnimatedLightningState extends State<AnimatedLightning>
       setState(() => _isAnimating = true);
       _controller.reset();
       _controller.forward().then((_) {
-        setState(() => _isAnimating = false);
+        if (mounted) {
+          setState(() => _isAnimating = false);
+        }
       });
     }
   }
@@ -56,21 +63,31 @@ class _AnimatedLightningState extends State<AnimatedLightning>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _triggerAnimation();
-        widget.onTap?.call();
-      },
-      child: RotationTransition(
-        turns: AlwaysStoppedAnimation(-20 / 360), // Slight diagonal tilt
-        child: ScaleTransition(
-          scale: _animation,
-          child: CustomPaint(
-            size: Size(widget.size, widget.size),
-            painter: _LightningPainter(
-              color: widget.color,
-              isAnimating: _isAnimating,
-              random: _random,
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(widget.size),
+        onTap: _triggerAnimation,
+        child: SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: Transform.rotate(
+            angle: -20 * (pi / 180),
+            child: AnimatedBuilder(
+              animation: _animation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _animation.value,
+                  child: CustomPaint(
+                    painter: _LightningPainter(
+                      color: widget.color,
+                      isAnimating: _isAnimating,
+                      random: _random,
+                    ),
+                    size: Size(widget.size, widget.size),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -93,47 +110,54 @@ class _LightningPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          color,
-          Colors.white,
-          color,
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..color = color
       ..style = PaintingStyle.fill;
 
-    // Main lightning path
+    // Main lightning path - more visible version
     final path = Path()
-      ..moveTo(size.width * 0.5, 0)
-      ..lineTo(size.width * 0.7, size.height * 0.4)
-      ..lineTo(size.width * 0.5, size.height * 0.4)
-      ..lineTo(size.width * 0.8, size.height)
-      ..lineTo(size.width * 0.5, size.height * 0.6)
-      ..lineTo(size.width * 0.3, size.height * 0.6)
+      ..moveTo(size.width * 0.5, size.height * 0.05)  // Start higher
+      ..lineTo(size.width * 0.65, size.height * 0.35)
+      ..lineTo(size.width * 0.5, size.height * 0.35)
+      ..lineTo(size.width * 0.75, size.height * 0.95)  // Extend further
+      ..lineTo(size.width * 0.5, size.height * 0.65)
+      ..lineTo(size.width * 0.25, size.height * 0.65)
       ..close();
 
     canvas.drawPath(path, paint);
 
-    // Add electric sparks when animating
+    // Enhanced electric sparks
     if (isAnimating) {
       final sparkPaint = Paint()
         // ignore: deprecated_member_use
-        ..color = Colors.white.withOpacity(0.7)
-        ..strokeWidth = 1.0
-        ..style = PaintingStyle.stroke;
+        ..color = Colors.white.withOpacity(0.9)
+        ..strokeWidth = 1.8
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
 
-      for (int i = 0; i < 8; i++) {
-        final startX = size.width * (0.4 + random.nextDouble() * 0.2);
-        final startY = size.height * (0.3 + random.nextDouble() * 0.4);
-        final endX = startX + (random.nextDouble() * 10 - 5);
-        final endY = startY + (random.nextDouble() * 10 - 5);
-
-        canvas.drawLine(
-          Offset(startX, startY),
-          Offset(endX, endY),
-          sparkPaint,
-        );
+      // More sparks radiating from center
+      for (int i = 0; i < 12; i++) {
+        final startX = size.width * 0.5;
+        final startY = size.height * 0.5;
+        final angle = random.nextDouble() * 2 * pi;
+        final length = random.nextDouble() * size.width * 0.35;
+        final endX = startX + cos(angle) * length;
+        final endY = startY + sin(angle) * length;
+        
+        // Draw main spark line
+        canvas.drawLine(Offset(startX, startY), Offset(endX, endY), sparkPaint);
+        
+        // Add small perpendicular lines for more electricity effect
+        if (i % 2 == 0) {
+          final midX = startX + cos(angle) * length * 0.5;
+          final midY = startY + sin(angle) * length * 0.5;
+          final perpAngle = angle + pi/2;
+          final perpLength = length * 0.3;
+          canvas.drawLine(
+            Offset(midX, midY),
+            Offset(midX + cos(perpAngle) * perpLength, midY + sin(perpAngle) * perpLength),
+            sparkPaint,
+          );
+        }
       }
     }
   }
