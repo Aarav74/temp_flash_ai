@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatMessage extends StatelessWidget {
   final String text;
   final String sender;
-  final bool isUser;  // Required parameter to identify user messages
+  final bool isUser;
   final bool isFile;
   final Color userColor;
   final Color aiColor;
   final Color textColor;
+  final bool isDarkMode;
 
   const ChatMessage({
     super.key,
@@ -18,6 +20,7 @@ class ChatMessage extends StatelessWidget {
     required this.userColor,
     required this.aiColor,
     required this.textColor,
+    required this.isDarkMode,
   });
 
   @override
@@ -82,13 +85,7 @@ class ChatMessage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  Text(
-                    text,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 16,
-                    ),
-                  ),
+                  _buildMessageContent(),
                   const SizedBox(height: 4),
                   Text(
                     _formatTime(DateTime.now()),
@@ -97,7 +94,8 @@ class ChatMessage extends StatelessWidget {
                       color: textColor.withOpacity(0.6),
                       fontSize: 10,
                     ),
-              )],
+                  ),
+                ],
               ),
             ),
           ),
@@ -118,6 +116,41 @@ class ChatMessage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildMessageContent() {
+    try {
+      return MarkdownBody(
+        data: text,
+        styleSheet: MarkdownStyleSheet(
+          p: TextStyle(
+            fontSize: 16,
+            color: textColor,
+          ),
+          strong: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+          em: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: textColor,
+          ),
+          code: TextStyle(
+            fontFamily: 'monospace',
+            backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+      );
+    } catch (e) {
+      return Text(
+        text,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 16,
+        ),
+      );
+    }
   }
 
   String _formatTime(DateTime time) {
