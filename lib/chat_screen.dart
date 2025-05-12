@@ -312,7 +312,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       
       if (lowerMessage.contains("who made you") || 
           lowerMessage.contains("who created you") ||
-          lowerMessage.contains("creator")) {
+          lowerMessage.contains("creator")||
+          lowerMessage.contains("developer")||
+          lowerMessage.contains("created me")||
+          lowerMessage.contains("created by ?")||
+          lowerMessage.contains("who made u")||
+          lowerMessage.contains("who is your developer")||
+          lowerMessage.contains("who is your creator")||
+          lowerMessage.contains("who created you")||
+          lowerMessage.contains("creator")||
+          lowerMessage.contains("your creator")||
+          lowerMessage.contains(" your developer")) {
         _addMessage("I was created by $creatorName! ❤️", "FLASH");
         return;
       }
