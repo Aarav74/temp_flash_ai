@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flash_ai/flash_intro_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
 import 'chat_message.dart';
 import 'animated_lightning.dart';
 
@@ -23,8 +23,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
   final List<ChatMessage> _messages = [];
   final ScrollController _scrollController = ScrollController();
-  late GenerativeModel _model;
-  late ChatSession _chat;
+  final List<Map<String, String>> _conversationHistory = [];
   bool _isTyping = false;
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
@@ -33,6 +32,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final String creatorName = "AARAV";
   bool _hasSpeechPermission = false;
   late AnimationController _typingIndicatorController;
+
+  // OpenRouter configuration
+  String get _openRouterApiKey => dotenv.env['OPENROUTER_API_KEY'] ?? '';
+  static const String _openRouterBaseUrl = 'https://openrouter.ai/api/v1';
+  static const String _defaultModel = 'openai/gpt-3.5-turbo'; // Changed to more reliable model
 
   // Asset paths
   static const String _bgLightPath = 'assets/images/chat_bg_light.jpg';
@@ -57,7 +61,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1500),
     );
     _verifyFirebaseAuth();
-    _initializeGemini();
+    _initializeOpenRouter();
     _initializeSpeech();
     _loadInitialGreeting();
     _updateSystemUIOverlay();
@@ -82,34 +86,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _initializeGemini() {
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    if (apiKey.isEmpty) {
-      _addSystemMessage("GEMINI_API_KEY not found in .env file");
+  void _initializeOpenRouter() {
+    if (_openRouterApiKey.isEmpty) {
+      _addSystemMessage("❌ OPENROUTER_API_KEY not found in .env file");
+      debugPrint("❌ OpenRouter API Key is empty");
       return;
     }
-
-    try {
-      _model = GenerativeModel(
-        model: 'gemini-1.5-pro',
-        apiKey: apiKey,
-        generationConfig: GenerationConfig(
-          temperature: 1,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        ),
-        safetySettings: [
-          SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-          SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-          SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.none),
-          SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.none),
-        ],
-      );
-      _chat = _model.startChat();
-    } catch (e) {
-      _addSystemMessage("Failed to initialize Gemini: ${e.toString()}");
-    }
+    debugPrint("✅ OpenRouter API initialized with key: ${_openRouterApiKey.substring(0, 8)}...");
   }
 
   Future<void> _initializeSpeech() async {
@@ -253,15 +236,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
     
     try {
-      final mimeType = _getMimeType(file.extension);
-      final base64File = base64Encode(file.bytes!);
-      final content = Content.multi([
-        TextPart("data:$mimeType;base64,$base64File"),
-        TextPart("Please analyze this ${file.extension} file"),
-      ]);
-
-      final response = await _chat.sendMessage(content);
-      _addMessage(response.text ?? "I've processed your file", "FLASH");
+      // For text files, read content directly
+      if (file.extension?.toLowerCase() == 'txt') {
+        final content = String.fromCharCodes(file.bytes!);
+        await _sendOpenRouterMessage("Please analyze this text file content:\n\n$content");
+      } else {
+        // For other files, just mention the file type
+        await _sendOpenRouterMessage("I received a ${file.extension} file named '${file.name}'. Please note that I can currently only process text content directly. For other file types, please describe what you'd like me to help you with regarding this file.");
+      }
     } catch (e) {
       _addSystemMessage("Failed to process file: ${e.toString()}");
     } finally {
@@ -269,26 +251,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _isTyping = false;
         _typingIndicatorController.stop();
       });
-    }
-  }
-
-  String _getMimeType(String? extension) {
-    switch (extension?.toLowerCase()) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'pdf':
-        return 'application/pdf';
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
     }
   }
 
@@ -327,8 +289,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         return;
       }
 
-      final response = await _chat.sendMessage(Content.text(message));
-      _addMessage(response.text ?? "Sorry, I couldn't generate a response", "FLASH");
+      await _sendOpenRouterMessage(message);
     } catch (e) {
       _addSystemMessage("Error processing message: ${e.toString()}");
     } finally {
@@ -336,6 +297,154 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _isTyping = false;
         _typingIndicatorController.stop();
       });
+    }
+  }
+
+  // Enhanced debug version of _sendOpenRouterMessage
+  Future<void> _sendOpenRouterMessage(String message) async {
+    try {
+      // Debug: Print API key status (first few characters only for security)
+      final apiKey = _openRouterApiKey;
+      debugPrint("🔑 API Key Status: ${apiKey.isEmpty ? 'EMPTY' : 'Present (${apiKey.substring(0, 8)}...*)'}");
+      
+      if (apiKey.isEmpty) {
+        _addSystemMessage("❌ API Key not found. Please check your .env file.");
+        return;
+      }
+
+      // Add user message to conversation history
+      _conversationHistory.add({
+        'role': 'user',
+        'content': message,
+      });
+
+      debugPrint("📤 Sending request to OpenRouter...");
+      debugPrint("🎯 Model: $_defaultModel");
+      debugPrint("💬 Message: ${message.substring(0, message.length > 50 ? 50 : message.length)}...");
+
+      final requestBody = {
+        'model': _defaultModel,
+        'messages': _conversationHistory,
+        'temperature': 0.7,
+        'max_tokens': 4000,
+        'top_p': 0.9,
+      };
+
+      debugPrint("📦 Request body: ${jsonEncode(requestBody)}");
+
+      final response = await http.post(
+        Uri.parse('$_openRouterBaseUrl/chat/completions'),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://flash-ai.app',
+          'X-Title': 'FLASH AI',
+        },
+        body: jsonEncode(requestBody),
+      ).timeout(
+        const Duration(seconds: 30), // Add timeout
+        onTimeout: () {
+          throw TimeoutException('Request timed out after 30 seconds');
+        },
+      );
+
+      debugPrint("📥 Response status: ${response.statusCode}");
+      debugPrint("📥 Response headers: ${response.headers}");
+      debugPrint("📥 Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Enhanced response validation
+        if (data == null) {
+          throw Exception('Response data is null');
+        }
+        
+        if (data['choices'] == null) {
+          throw Exception('No choices in response: ${jsonEncode(data)}');
+        }
+        
+        if (data['choices'].isEmpty) {
+          throw Exception('Empty choices array: ${jsonEncode(data)}');
+        }
+        
+        final choice = data['choices'][0];
+        if (choice['message'] == null) {
+          throw Exception('No message in choice: ${jsonEncode(choice)}');
+        }
+        
+        final aiResponse = choice['message']['content'];
+        if (aiResponse == null || aiResponse.toString().trim().isEmpty) {
+          throw Exception('Empty AI response content');
+        }
+        
+        debugPrint("✅ AI Response received: ${aiResponse.toString().substring(0, aiResponse.toString().length > 100 ? 100 : aiResponse.toString().length)}...");
+        
+        // Add AI response to conversation history
+        _conversationHistory.add({
+          'role': 'assistant',
+          'content': aiResponse,
+        });
+
+        // Keep conversation history manageable (last 20 messages)
+        if (_conversationHistory.length > 20) {
+          _conversationHistory.removeRange(0, _conversationHistory.length - 20);
+        }
+
+        _addMessage(aiResponse.toString(), "FLASH");
+        
+      } else {
+        // Enhanced error handling with more details
+        String errorMessage = 'API request failed';
+        String responseBody = response.body;
+        
+        debugPrint("❌ Error Response Body: $responseBody");
+        
+        try {
+          final errorData = jsonDecode(responseBody);
+          errorMessage = errorData['error']?['message'] ?? 'Unknown error occurred';
+          
+          // Log additional error details if available
+          if (errorData['error']?['type'] != null) {
+            debugPrint("❌ Error Type: ${errorData['error']['type']}");
+          }
+          if (errorData['error']?['code'] != null) {
+            debugPrint("❌ Error Code: ${errorData['error']['code']}");
+          }
+          
+        } catch (e) {
+          errorMessage = 'HTTP ${response.statusCode}: ${response.reasonPhrase}';
+          debugPrint("❌ Failed to parse error response: $e");
+        }
+        
+        throw Exception('API Error (${response.statusCode}): $errorMessage');
+      }
+      
+    } catch (e) {
+      debugPrint('❌ OpenRouter API Error Details: $e');
+      debugPrint('❌ Error Type: ${e.runtimeType}');
+      
+      // Provide more specific user-friendly error messages
+      String userMessage;
+      final errorString = e.toString().toLowerCase();
+      
+      if (errorString.contains('timeout')) {
+        userMessage = "⏰ Request timed out. Please check your internet connection and try again.";
+      } else if (errorString.contains('401') || errorString.contains('unauthorized')) {
+        userMessage = "🔐 Authentication failed. Please check your OpenRouter API key.";
+      } else if (errorString.contains('429') || errorString.contains('rate limit')) {
+        userMessage = "⏳ Rate limit exceeded. Please wait a moment and try again.";
+      } else if (errorString.contains('500') || errorString.contains('502') || errorString.contains('503')) {
+        userMessage = "🔧 OpenRouter server error. Please try again in a few minutes.";
+      } else if (errorString.contains('network') || errorString.contains('connection')) {
+        userMessage = "🌐 Network error. Please check your internet connection.";
+      } else if (errorString.contains('socketexception')) {
+        userMessage = "📡 Connection failed. Please check your internet connection.";
+      } else {
+        userMessage = "❌ Error: ${e.toString()}";
+      }
+      
+      _addSystemMessage(userMessage);
     }
   }
 
