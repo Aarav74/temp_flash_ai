@@ -1,16 +1,135 @@
-# temp_flash_ai
+# FLASH AI
 
-A new Flutter project.
+![FLASH AI Logo](https://placehold.co/150x150/FFA500/FFFFFF?text=FLASH+AI)
 
-## Getting Started
+FLASH AI is a modern, interactive AI chatbot application built with Flutter and Firebase. It provides real-time conversations, supports file uploads for analysis, offers voice input capabilities, and features a dynamic dark/light mode.
 
-This project is a starting point for a Flutter application.
+## ✨ Features
 
-A few resources to get you started if this is your first Flutter project:
+* **Real-time Conversations:** Engage in seamless, interactive chats with the AI.
+* **File Uploads & Analysis:** Upload various file types (e.g., `.txt`, `.pdf`, `.doc`, `.docx`, `.jpg`, `.png`) for analysis. Currently, direct content processing is primarily for text files, with other file types providing a description.
+* **Voice Input Support:** Utilize speech-to-text functionality for hands-free messaging.
+* **Authentication:** Secure user authentication using Email/Password and Google Sign-In powered by Firebase Authentication.
+* **Dark/Light Mode:** Switch between elegant dark and light themes for personalized viewing.
+* **Animated Lightning Logo:** A visually appealing animated lightning bolt serves as the app's logo and an interactive element.
+* **Introductory Screen:** A "Flash Intro Screen" provides a warm welcome and highlights the app's key features.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🚀 Getting Started
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Follow these steps to set up and run FLASH AI on your local machine.
+
+### Prerequisites
+
+* [Flutter SDK](https://flutter.dev/docs/get-started/install) (Stable channel recommended)
+* [Firebase CLI](https://firebase.google.com/docs/cli)
+* A Google account for Firebase and Google Sign-In.
+* An [OpenRouter](https://openrouter.ai/) API Key for AI model access.
+
+### 1. Clone the Repository
+
+```bash
+git clone [https://github.com/your-username/flash-ai.git](https://github.com/your-username/flash-ai.git)
+cd flash-ai
+```
+
+### 2. Install Dependencies
+
+```bash
+flutter pub get
+```
+
+### 3. Firebase Setup
+
+1.  **Create a Firebase Project:**
+    * Go to the [Firebase Console](https://console.firebase.google.com/).
+    * Click "Add project" and follow the steps to create a new project.
+
+2.  **Add Apps to Firebase Project:**
+    * **Android:** Add an Android app. Use `com.example.flashai` (or your chosen package name) as the Android package name. Download `google-services.json` and place it in `android/app/`.
+    * **iOS:** Add an iOS app. Use `com.example.flashAi` (or your chosen bundle ID) as the iOS bundle ID. Download `GoogleService-Info.plist` and place it in `ios/Runner/`.
+    * **Web:** Add a Web app. Copy the Firebase configuration object.
+
+3.  **Enable Authentication Methods:**
+    * In the Firebase Console, navigate to "Authentication" > "Sign-in method."
+    * Enable **Email/Password** and **Google** sign-in providers.
+
+4.  **Generate `firebase_options.dart`:**
+    * Run the FlutterFire CLI command to generate the Firebase options file:
+        ```bash
+        flutterfire configure
+        ```
+    * This will create `lib/firebase_options.dart` with your project's Firebase configurations.
+
+### 4. OpenRouter API Key Setup
+
+1.  **Get an OpenRouter API Key:**
+    * Sign up or log in to [OpenRouter](https://openrouter.ai/).
+    * Navigate to your dashboard or API key settings to generate a new API key.
+
+2.  **Create a `.env` file:**
+    * In the root directory of your project, create a file named `.env`.
+    * Add your OpenRouter API key to this file:
+        ```
+        OPENROUTER_API_KEY=your_openrouter_api_key_here
+        ```
+    * **Important:** Do not commit your `.env` file to version control. Add `.env` to your `.gitignore` file.
+
+### 5. Run the Application
+
+```bash
+flutter run
+```
+
+## 📂 Project Structure
+
+```
+flash-ai/
+├── .env                  # Environment variables (e.g., API keys)
+├── lib/
+│   ├── main.dart         # Main entry point of the application
+│   ├── auth_screen.dart  # User authentication (login/signup) UI
+│   ├── auth_service.dart # Firebase Authentication service
+│   ├── chat_screen.dart  # Main chat interface
+│   ├── chat_message.dart # Widget for displaying individual chat messages
+│   ├── animated_lightning.dart # Custom animated lightning bolt widget
+│   ├── flash_intro_screen.dart # Introductory screen for the app
+│   ├── google_signin_button.dart # Custom Google Sign-In button
+│   ├── firebase_options.dart # Firebase configuration generated by FlutterFire CLI
+│   └── markdown_parser.dart # Utility for parsing markdown in chat messages
+├── assets/
+│   └── images/
+│       ├── Google_png.png      # Google logo for sign-in button
+│       ├── Graident Ai Robot.jpg # AI avatar image
+│       ├── chat_bg_light.jpg   # Light mode chat background
+│       └── chat_bg_dark.jpg    # Dark mode chat background
+├── pubspec.yaml          # Project dependencies and metadata
+└── README.md             # This file
+```
+
+## 🛠️ Technologies Used
+
+* **Flutter:** UI Toolkit for building natively compiled applications for mobile, web, and desktop from a single codebase.
+* **Firebase:**
+    * **Authentication:** User authentication (Email/Password, Google Sign-In).
+* **OpenRouter:** AI model API for generating chat responses.
+* **`flutter_dotenv`:** For loading environment variables from a `.env` file.
+* **`file_picker`:** For picking files from the device.
+* **`speech_to_text`:** For converting speech to text.
+* **`permission_handler`:** For managing runtime permissions.
+* **`http`:** For making HTTP requests to the OpenRouter API.
+* **`flutter_markdown`:** For rendering Markdown content in chat messages.
+* **`flutter_signin_button`:** Provides pre-styled social sign-in buttons.
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have suggestions for improvements or new features, please open an issue or submit a pull request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgements
+
+* Built with ❤️ by Aarav.
+* Special thanks to the Flutter and Firebase communities for their excellent resources and support.
+* Powered by OpenRouter for AI capabilities.
